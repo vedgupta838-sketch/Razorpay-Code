@@ -1,4 +1,4 @@
-import express from "express";
+ import express from "express";
 import Razorpay from "razorpay";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -19,20 +19,32 @@ const razorpay = new Razorpay({
 // ✅ Create order endpoint
 app.post("/create-order", async (req, res) => {
   try {
-    const options = {
-      amount: 2000, // ₹20.00
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: 1000, // in paise (10 INR)
       currency: "INR",
-      receipt: "receipt_" + Date.now(),
-    };
+      description: "Vending Machine Purchase",
+      customer: {
+        name: "Customer",
+        email: "customer@example.com",
+      },
+      notify: {
+        sms: true,
+        email: false,
+      },
+      reminder_enable: true,
+    });
 
-    const order = await razorpay.orders.create(options);
-    console.log("Order Created:", order.id);
-    res.json(order);
-  } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ error: "Failed to create order" });
+    // Send back short_url and payment_link_id
+    res.json({
+      id: paymentLink.id,
+      short_url: paymentLink.short_url,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error creating payment link");
   }
 });
+
 
 // ✅ Check payment status endpoint
 app.get("/check-payment", async (req, res) => {
