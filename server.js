@@ -1,4 +1,4 @@
- import express from "express";
+import express from "express";
 import Razorpay from "razorpay";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -11,12 +11,13 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// 🟢 Initialize Razorpay instance
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-// ✅ Create order endpoint
+// ✅ Create payment link
 app.post("/create-order", async (req, res) => {
   try {
     const paymentLink = await razorpay.paymentLink.create({
@@ -34,10 +35,10 @@ app.post("/create-order", async (req, res) => {
       reminder_enable: true,
     });
 
-    // Send back short_url and payment_link_id
+    // Send back link details
     res.json({
-      id: paymentLink.id,
-      short_url: paymentLink.short_url,
+      id: paymentLink.id,         // example: "plink_123ABC"
+      short_url: paymentLink.short_url, // QR link
     });
   } catch (err) {
     console.error(err);
@@ -45,23 +46,20 @@ app.post("/create-order", async (req, res) => {
   }
 });
 
-
-// ✅ Check payment status endpoint
+// ✅ Check payment status
 app.get("/check-payment", async (req, res) => {
   try {
     const { order_id } = req.query;
     if (!order_id) return res.status(400).json({ error: "Missing order_id" });
 
-    // Fetch payment details for the order
+    // Fetch payment link details
     const response = await axios.get(
-      `https://${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}@api.razorpay.com/v1/orders/${order_id}/payments`
+      `https://${process.env.RAZORPAY_KEY}:${process.env.RAZORPAY_SECRET}@api.razorpay.com/v1/payment_links/${order_id}`
     );
 
-    const payments = response.data.items;
-    console.log("Payments for order:", payments);
+    console.log("Payment Link Status:", response.data.status);
 
-    if (payments.length > 0 && payments[0].status === "captured") {
-      // Payment successful
+    if (response.data.status === "paid") {
       return res.send("success");
     } else {
       return res.send("pending");
